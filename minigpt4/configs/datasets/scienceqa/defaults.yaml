@@ -1,0 +1,5 @@
+datasets:
+  scienceqa:
+    data_type: images
+    build_info:
+      storage: data

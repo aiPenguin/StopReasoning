@@ -1,0 +1,5 @@
+datasets:
+  aokvqa:
+    data_type: images
+    build_info:
+      storage: data
