@@ -27,9 +27,8 @@ class Attacker:
         self.mean = torch.as_tensor(mean, device=chat.device).view(-1, 1, 1)
         self.std = torch.as_tensor(std, device=chat.device).view(-1, 1, 1)
 
-        # HACK: set key manually
         self.key = "class" if self.args.dataset == "ImageNet" else "answer"
-        self.pos = "first" if "without_reasoning" in self.args.scenarios else "last"
+        self.pos = "first" if "stop_reasoning" in self.args.scenarios else "last"
 
         self.print_flag = True
 
@@ -208,7 +207,7 @@ class Attacker:
                 llm_message, ref_rat_logits = self.get_reference(inputs)
                 message_list.append(llm_message)
                 if (
-                    "without_reasoning" in self.args.scenarios
+                    "stop_reasoning" in self.args.scenarios
                     and not stop_reasoning(llm_message, self.key)
                     and extract_answer(llm_message, self.pos) is not None
                 ):
@@ -237,8 +236,8 @@ class Attacker:
             loss_funcs.append(self.baseline())
         if "rationale" in scenarios:
             loss_funcs.append(self.rationale())
-        if "without_reasoning" in scenarios:
-            loss_funcs.append(self.without_reasoning())
+        if "stop_reasoning" in scenarios:
+            loss_funcs.append(self.stop_reasoning())
         if self.print_flag:
             print(f"loss_funcs: {loss_funcs}")
             self.print_flag = False
@@ -288,7 +287,7 @@ class Attacker:
 
         return loss_func
 
-    def without_reasoning(self):
+    def stop_reasoning(self):
         # loss fuction
         ce = nn.CrossEntropyLoss()
 

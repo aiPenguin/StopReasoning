@@ -18,7 +18,8 @@ from utils.misc import extract_answer, stop_reasoning
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--offset", type=int, default=0, help="offset for the inference")
+    parser.add_argument("--path", type=str, default="./experiments", help="path to the experiments")
+    parser.add_argument("--folders", nargs='+', type=str, default="A-OK", help="folders to be evaluated")
     return parser.parse_args()
 
 def load_data(path):
@@ -75,7 +76,6 @@ def get_acc(data, losses=None, pos="last", ref=None, offset=0):
         num_correct += 1 if flag else 0
         num_targeted_success += 1 if target_flag else 0
 
-    # print(f"num_total: {num_total}, num_wo_cot: {num_wo_cot}, num_w_cot: {num_w_cot}")
     success_rate = num_targeted_success / (num_total - num_jumped) if target is not None else (num_total - num_correct) / num_total
     correct_rate = num_correct / num_total
 
@@ -116,32 +116,16 @@ def get_subfolders_os(path):
 
 if __name__ == "__main__":
     args = parse_args()
-    root = "./experiments"
-    folders = []
-    # folders += ["colm_targeted"]
-    # folders += ["colm_ablation/epsilon_0.00784314", "colm_ablation/epsilon_0.01568627", "colm_ablation/epsilon_0.1254902"]
-    folders += ["colm_13B", "colm_13B_targeted"]
-    # folders += ["new_crt", "new_crt8"]
-    # folders += ['stop_flag', 'stop_flag_8_16']
-    # folders += ['imagenet', 'imagenet8', 'imagenet16']
-    for folder in folders:
-        paths = get_subfolders_os(os.path.join(root, folder))
-        paths = sorted(paths)
-        results = {}
-        for i, path in enumerate(paths):
-            # if "A-OK" in path:
-            #     continue
-            # if "without" not in path:
-            #     continue
-            data = load_data(path)
-            losses = load_loss(path)
-            ref = load_data(paths[i-3])['ref_text'] if "wo_cot" in path else None
-            pos = "first" if "without" in path else "last"
-            # results.update({os.path.basename(path)[30:]: {}})
-            # for j in range(19, -1, -1):
-            success_rate, correct_rate, num_total = get_acc(data, losses=losses, pos=pos, ref=ref, offset=0)
-            results[os.path.basename(path)] = {"success_rate": success_rate, "correct_rate": correct_rate, "num_total": num_total}
-            #     results[os.path.basename(path)[30:]].update({20-j: correct_rate})
-        df = pd.DataFrame(results).T
-        print(f"Results for {folder}")
-        print(df)
+    root = args.path
+    paths = [os.path.join(root, folder) for folder in args.folders]
+    paths = sorted(paths)
+    results = {}
+    for i, path in enumerate(paths):
+        data = load_data(path)
+        losses = load_loss(path)
+        ref = load_data(paths[i-3])['ref_text'] if "wo_cot" in path else None
+        pos = "first" if "without" in path else "last"
+        success_rate, correct_rate, num_total = get_acc(data, losses=losses, pos=pos, ref=ref, offset=0)
+        results[os.path.basename(path)] = {"success_rate": success_rate, "correct_rate": correct_rate, "num_total": num_total}
+    df = pd.DataFrame(results).T
+    print(f"Results:\n{df}")

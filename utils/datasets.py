@@ -9,20 +9,8 @@ class A_OKVQADataset(Dataset):
     """ """
 
     def __init__(self, args):
-        """
-        Initializes a Dataset class
-
-        Args:
-        """
         self.args = args
-        # self.prompt_format = args.prompt_format
-
-        train_data = json.load(open(os.path.join(args.data_root, "A-OKVQA/aokvqa_v1p0_train.json")))
-        val_data = json.load(open(os.path.join(args.data_root, "A-OKVQA/aokvqa_v1p0_val.json")))
-        # WARN: use val as test
-        # test_data = json.load(open(os.path.join(args.data_root, "A-OKVQA/aokvqa_v1p0_test.json")))[:20]
         test_data = json.load(open(os.path.join(args.data_root, "A-OKVQA/aokvqa_v1p0_val.json")))
-        # problems = train_data + val_data + test_data
         problems = test_data
         self.data = {str(i): problems[i] for i in range(len(problems))}
 
@@ -44,7 +32,7 @@ class A_OKVQADataset(Dataset):
         prompt = formatted_problem + self.args.prompt
 
         image_id = str(problem["image_id"]).zfill(12)
-        img_path = os.path.join(self.args.data_root, "coco/images", f"{image_id}.jpg")
+        img_path = os.path.join(self.args.data_root, "coco/test2017", f"{image_id}.jpg")
         if os.path.exists(img_path):
             image = Image.open(img_path)
             image = image.convert("RGB")
@@ -59,14 +47,7 @@ class ScienceQADataset(Dataset):
     """ """
 
     def __init__(self, args):
-        """
-        Initializes a Dataset class
-
-        Args:
-        """
         self.args = args
-        # self.prompt_format = args.prompt_format
-
         problems = json.load(open(os.path.join(args.data_root, "scienceqa/problems.json")))
         pid_splits = json.load(open(os.path.join(args.data_root, "scienceqa/pid_splits_w_img.json")))
         self.pid = [p for p in pid_splits["test"] if problems[p]["category"] != 'State capitals']
@@ -162,93 +143,3 @@ class ImageNetDataset(Dataset):
 
         inputs = {"text": prompt, "image": image, "qid": str(data[0]), "image_id": image_id}
         return inputs, label
-
-from datasets import load_dataset, concatenate_datasets
-import ast
-
-
-class MMMUDataset(Dataset):
-    CAT_SHORT2LONG = {
-        'acc': 'Accounting',
-        'agri': 'Agriculture',
-        'arch': 'Architecture_and_Engineering',
-        'art': 'Art',
-        'art_theory': 'Art_Theory',
-        'bas_med': 'Basic_Medical_Science',
-        'bio': 'Biology',
-        'chem': 'Chemistry',
-        'cli_med': 'Clinical_Medicine',
-        'cs': 'Computer_Science',
-        'design': 'Design',
-        'diag_med': 'Diagnostics_and_Laboratory_Medicine',
-        'econ': 'Economics',
-        'elec': 'Electronics',
-        'ep': 'Energy_and_Power',
-        'fin': 'Finance',
-        'geo': 'Geography',
-        'his': 'History',
-        'liter': 'Literature',
-        'manage': 'Manage',
-        'mark': 'Marketing',
-        'mate': 'Materials',
-        'math': 'Math',
-        'mech': 'Mechanical_Engineering',
-        'music': 'Music',
-        'phar': 'Pharmacy',
-        'phys': 'Physics',
-        'psy': 'Psychology',
-        'pub_health': 'Public_Health',
-        'socio': 'Sociology'
-    }
-
-    def __init__(self, args):
-        """
-        Initializes a Dataset class
-
-        Args:
-        """
-        self.args = args
-        # self.prompt_format = args.prompt_format
-
-        # problems = json.load(open(os.path.join(args.data_root, "scienceqa/problems.json")))
-        # pid_splits = json.load(open(os.path.join(args.data_root, "scienceqa/pid_splits_w_img.json")))
-        # self.pid = [p for p in pid_splits["test"] if problems[p]["category"] != 'State capitals']
-        # self.data = {p: problems[p] for p in self.pid}
-        self.data = self.load()
-
-    def load(self):
-        # run for each subject
-        sub_dataset_list = []
-        for subject in MMMUDataset.CAT_SHORT2LONG.values():
-            sub_dataset = load_dataset("MMMU/MMMU", subject, split="validation")
-            sub_dataset_list.append(sub_dataset)
-
-        # merge all dataset
-        dataset = concatenate_datasets(sub_dataset_list)
-        dataset = dataset.filter(lambda x : x['image_1'] is not None and x['image_2'] is None)
-        return dataset
-
-
-    def __len__(self):
-        """returns the length of dataframe"""
-        return len(self.data)
-
-    def format_problem(self, problem):
-        choice = ast.literal_eval(problem["options"])
-        formatted_choices = ", ".join(f"({chr(65 + i)}) {choice}" for i, choice in enumerate(choice))
-        formatted_problem = f"Question: {problem['question']}\nChoices: {formatted_choices}\n"
-        formatted_problem = formatted_problem.replace('<image 1>', '')
-
-        return formatted_problem
-
-    def __getitem__(self, index):
-        """return the input ids, attention masks and target ids"""
-        problem = self.data[index]
-
-        formatted_problem = self.format_problem(problem)
-        prompt = formatted_problem + self.args.prompt
-
-        image = problem['image_1'].convert("RGB")
-
-        inputs = {"text": prompt, "image": image, "qid": problem['id'], "image_id": index}
-        return inputs, problem["answer"]
